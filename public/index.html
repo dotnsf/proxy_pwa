@@ -1,0 +1,147 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3c.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml">
+<head>
+<meta charset="utf8"/>
+<meta http-equiv="pragma" content="no-cache"/>
+<script src="//code.jquery.com/jquery-2.2.4.min.js"></script>
+<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/leaflet/1.2.0/leaflet.css" />
+<script src="//cdnjs.cloudflare.com/ajax/libs/leaflet/1.2.0/leaflet.js"></script>
+<link href="//maxcdn.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet"/>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+<!--
+<script src="./jquery.js"></script>
+<link rel="stylesheet" href="./leaflet.css" />
+<script src="./leaflet.js"></script>
+<link href="./bootstrap.css" rel="stylesheet"/>
+<script src="./bootstrap.js"></script>
+-->
+
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+<meta name="apple-mobile-web-app-title" content="Proxy PWA Sample"/>
+
+<!-- // OGP tags -->
+<meta property="og:title" content="Proxy PWA Sample"/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="//proxy_pwa.mybluemix.net/"/>
+<meta property="og:image" content="//proxy_pwa.mybluemix.net/logo192.png"/>
+<meta property="og:site_name" content="Proxy PWA Sample"/>
+<meta property="og:description" content="Proxy PWA Sample"/>
+<!-- OGP tags // -->
+
+<!-- // Twitter Card -->
+<meta property="twitter:card" content="summary"/>
+<meta property="twitter:site" content="@dotnsf"/>
+<meta property="twitter:creator" content="@dotnsf"/>
+<meta property="twitter:url" content="//proxy_pwa.mybluemix.net/"/>
+<meta property="twitter:image" content="//proxy_pwa.mybluemix.net/logo192.png"/>
+<meta property="twitter:title" content="Proxy PWA Sample"/>
+<meta property="twitter:description" content="Proxy PWA Sample"/>
+<!-- Twitter Card // -->
+
+<title>Proxy PWA Sample</title>
+<script>
+//. Register ServiceWorker
+if( 'serviceWorker' in navigator ){
+  window.addEventListener( 'load', function(){
+    //. github pages の場合、ファイルパスの頭に  './' をつける必要あり #1
+    navigator.serviceWorker.register( './serviceworker.js' ).then( function( reg ){
+      console.log( 'Service worker registered.', reg );
+    });
+  });
+}
+</script>
+<script>
+//. 初期中心位置
+var lat = 35.681377778;
+var lng = 139.76736389;
+
+//. 初期ズームレベルと初期角度
+var zoomlevel = 10;
+var deg = 0;
+
+var map = null;
+
+$(function(){
+  //. 初期位置を中心とした地図を OpenStreetMap データで表示
+  //map = L.map('demoMap', { dragging: false, zoomControl: false, minZoom: zoomlevel, maxZoom: zoomlevel }).setView( [ lat, lng ], zoomlevel );
+  map = L.map('demoMap', { dragging: false, zoomControl: false }).setView( [ lat, lng ], zoomlevel );
+  //map = L.map('demoMap', { dragging: true, zoomControl: true }).setView( [ lat, lng ], zoomlevel );
+
+  //. ここから下の JavaScript を全てコメントにしても #1 のエラーが発生する
+  L.tileLayer(
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: 'Map data &copy; <a href="//openstreetmap.org/">OpenStreetMap</a>',
+      //maxZoom: zoomlevel
+    }
+  ).addTo( map );
+
+  $.ajax({
+    url: '/list',
+    type: 'GET',
+    success: function( result ){
+      if( result && result.status && result.images ){
+        var images = result.images;
+        console.log( images );
+
+        //. 画像のキャッシュ化はできた。が、
+        //. オンラインで static-2 を見に行くようにしていても（オフラインの） static-1 の情報が使われてしまう？
+        //. 最新の一覧（/list）が変わった時に反映されず、キャッシュのままになる？？
+        //. （そうだった場合）バージョンを static-3 にして再デプロイした場合はどうなる？？
+        //. 最新画像が関宿城博物館のではなくなった時に再チェックする
+
+        var min_lat = 500;
+        var max_lat = -500;
+        var min_lng = 500;
+        var max_lng = -500;
+        for( var i = 0; i < images.length; i ++ ){
+          var image = images[i];
+          var marker = L.marker( [ image.lat, image.lng ] ).addTo( map );
+          //marker.bindPopup( "<img src='//manholemap.juge.me/get?id=" + image.id + "' width='80%'/>" ).openPopup();
+
+          //. 結局、manholemap.juge.me 以下の画像はキャッシュされない。。方法はないか？
+          //. 同じドメイン内に Proxy っぽい API を作ってそこを経由させる？ -> オフライン化（キャッシュ化）には成功
+          marker.bindPopup( "<img src='./get?id=" + image.id + "' width='80%'/>" ).openPopup();
+
+          //. 東西南北の端位置
+          if( min_lat > image.lat ){ min_lat = image.lat; }
+          if( max_lat < image.lat ){ max_lat = image.lat; }
+          if( min_lng > image.lng ){ min_lng = image.lng; }
+          if( max_lng < image.lng ){ max_lng = image.lng; }
+        }
+
+        //. 全ての位置が画面内に収まるように位置とサイズを自動調節
+        var bounds = L.latLngBounds( [ min_lat, min_lng ] );
+        bounds.extend( [ min_lat, min_lng ] );
+        bounds.extend( [ max_lat, max_lng ] );
+        map.fitBounds( bounds );
+      }else{
+      }
+    },
+    error: function( e0, e1, e2 ){
+      console.log( e1 + ' : ' + e2 );
+    }
+  });
+});
+</script>
+<style>
+html, body {
+  width: 100%;
+  height: 100%;
+  padding: 0px;
+  margin: 0px;
+}
+#demoMap{
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+</style>
+</head>
+<body>
+  <div id="map">
+    <div id="demoMap"></div>
+  </div>
+</body>
+</html>
