@@ -10,6 +10,7 @@ app.use( express.static( __dirname + '/public' ) );
 
 //. '/list' にアクセスがあった場合の処理
 app.get( '/list', function( req, res ){
+  console.log( 'GET /list' );
   res.contentType( 'application/json; charset=utf-8' );
 
   var option = {
@@ -38,6 +39,7 @@ app.get( '/get', function( req, res ){
   }
 
   if( id ){
+    console.log( 'GET /get?id=' + id );
     var option = {
       url: settings.api_url + 'get?id=' + id,
       method: 'GET',
