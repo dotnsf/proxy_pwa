@@ -47,7 +47,15 @@ if( 'serviceWorker' in navigator ){
   window.addEventListener( 'load', function(){
     //. github pages の場合、ファイルパスの頭に  './' をつける必要あり #1
     navigator.serviceWorker.register( './serviceworker.js' ).then( function( reg ){
+      //. 登録成功
       console.log( 'Service worker registered.', reg );
+      reg.onupdatefound = function(){
+        console.log( 'Service worker update found.' );
+        reg.update();
+      }
+    }).catch( ( err )=> {
+      //. 登録失敗
+      console.log( 'Service worker failed to register.' );
     });
   });
 }
@@ -94,6 +102,11 @@ $(function(){
 
         //. （最新状態が反映されず、キャッシュのままになってしまうケースを想定して）
         //. 最新画像が関宿城博物館のではなくなった時にバージョンを static4 にして再デプロイして再度チェックする
+        //. →反映されていない。最新を反映するにはどうすれば？
+
+        //. キャッシュを手動で削除した場合は最新のものを取得してきた。キャッシュ削除のアクションをユーザーが取れるようにするべき？
+
+        //. このアプリでいえば、GET /get?id=XXXXX はキャッシュしたいが、GET /list はキャッシュしたくない。指定方法ある？
 
         var min_lat = 500;
         var max_lat = -500;
@@ -128,6 +141,15 @@ $(function(){
     }
   });
 });
+
+function clearCache(){
+  if( confirm( 'PWA キャッシュをクリアします。よろしいですか？' ) ){
+    //. https://blog.htmlhifive.com/2018/08/27/pwa-cache-update/
+    navigator.serviceWorker.getRegistration().then( ( reg ) => {
+      reg.unregister();
+    });
+  }
+}
 </script>
 <style>
 html, body {
@@ -139,13 +161,18 @@ html, body {
 #demoMap{
   position: fixed;
   width: 100%;
-  height: 100%;
+  height: 90%;
+}
+#clearBtn{
+  position: fixed;
+  top: 90%;
 }
 </style>
 </head>
 <body>
-  <div id="map">
+  <div>
     <div id="demoMap"></div>
+    <button id="clearBtn" class="btn btn-warning" onClick="clearCache();">Cache Clear</button>
   </div>
 </body>
 </html>

@@ -1,10 +1,11 @@
-const VERSION = "3";
+const VERSION = "1";
 const ORIGIN = location.protocol + '//' + location.hostname;
 
 const STATIC_CACHE_KEY = 'static-' + VERSION;
 const STATIC_FILES = [
-    ORIGIN + '/',
-    ORIGIN + '/logo192.png',
+    //. スタティックファイルはロゴ含めて全てキャッシュの対象外とする
+    //ORIGIN + '/',
+    //ORIGIN + '/logo192.png',
 ];
 const CACHE_KEYS = [
     STATIC_CACHE_KEY
@@ -42,7 +43,13 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
     // POSTの場合はキャッシュを使用しない
+    /*
     if ('POST' === event.request.method) {
+        return;
+    }
+    */
+    //. GET /get?id= 以外はキャッシュしない
+    if( event.request.method !== 'GET' || event.request.url.match( /\/get\?id\=\d+$/ ) === null ){
         return;
     }
 
@@ -54,6 +61,7 @@ self.addEventListener('fetch', event => {
                 return response;
             }
 
+            console.log( event.request.method + ' ' + event.request.url );
           // 重要：リクエストを clone する。リクエストは Stream なので
           // 一度しか処理できない。ここではキャッシュ用、fetch 用と2回
           // 必要なので、リクエストは clone しないといけない
